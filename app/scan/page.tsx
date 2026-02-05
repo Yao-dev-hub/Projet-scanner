@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // app/scanner/page.tsx
 'use client';
@@ -12,7 +11,6 @@ import 'react-toastify/dist/ReactToastify.css';
 export default function ScannerPage() {
   const [scannedCount, setScannedCount] = useState(0);
   const [currentInventaireId, setCurrentInventaireId] = useState<number | null>(null);
-  const [depot, setDepot] = useState<'A' | 'B'>('A');
   const [isScanning, setIsScanning] = useState(false);
   const [error, setError] = useState<string>('');
   const router = useRouter();
@@ -112,79 +110,42 @@ export default function ScannerPage() {
         Quagga.start();
         setIsScanning(true);
 
-        // Détection + gestion des cas
+        // Détection + incrémentation rapide
         Quagga.onDetected(async (data) => {
           let code = data?.codeResult?.code?.trim();
           if (!code) return;
 
+          // Nettoyage agressif
           code = code.replace(/[^0-9]/g, '');
 
-          // Compteur temporaire (annulé si erreur)
+          // Mise à jour compteur immédiat
           setScannedCount(prev => prev + 1);
           playSuccessBeep();
           if (navigator.vibrate) navigator.vibrate(150);
 
+          // Appel API pour incrémenter quantité
           try {
             const res = await fetch('/api/scan', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 barcode: code,
-                depot,
                 inventaireId: currentInventaireId,
               }),
             });
 
             const json = await res.json();
 
-            if (!res.ok) {
-              // Erreur 404 : produit non trouvé dans la BD
-              if (res.status === 404) {
-                toast.error("🚫 Cet appareil n'est pas dans notre base de données", {
-                  autoClose: 4000,
-                  position: "top-center",
-                  theme: "dark",
-                });
-              }
-              // Erreur 409 : déjà scanné dans cet inventaire
-              else if (res.status === 409) {
-                toast.error("🚫 Appareil déjà scanné dans cet inventaire", {
-                  autoClose: 4000,
-                  position: "top-center",
-                  theme: "dark",
-                });
-              }
-              // Autre erreur
-              else {
-                toast.error(json.error || 'Erreur ajout', { autoClose: 1200 });
-              }
-
-              // Annule le compteur si erreur
-              setScannedCount(prev => prev - 1);
-
-              setTimeout(() => {
-                if (isMounted.current) {
-                  Quagga.start();
-                  setIsScanning(true);
-                }
-              }, 600);
-
-              return;
+            if (!res.ok || json.error) {
+              toast.error(json.error || 'Erreur ajout', { autoClose: 100 });
+            } else {
+              toast.success(`+1 (${json.produit.model} ${json.produit.capacity})`, { autoClose: 800 });
             }
-
-            // Succès : produit trouvé et pas encore scanné dans cet inventaire
-            toast.success(`✅ +1 (${json.produit.model || 'Produit'} ${json.produit.capacity || ''})`, {
-              autoClose: 800,
-              position: "top-center",
-              theme: "dark",
-            });
-
-          } catch (err) {
+          } catch {
             toast.error('Erreur réseau', { autoClose: 1200 });
-            setScannedCount(prev => prev - 1);
           }
 
-          // Re-démarre le scanner (succès ou erreur)
+          // Re-démarre le scanner très vite
           setTimeout(() => {
             if (isMounted.current) {
               Quagga.start();
@@ -226,7 +187,7 @@ export default function ScannerPage() {
       clearTimeout(timer);
       cleanup();
     };
-  }, [router, depot, currentInventaireId]);
+  }, [router, currentInventaireId]);
 
   const restartScanner = () => {
     setScannedCount(0);
@@ -235,48 +196,22 @@ export default function ScannerPage() {
   };
 
   return (
-    <div className="h-screen bg-linear-to-b from-gray-950 to-gray-900 text-white flex flex-col overflow-hidden items-center justify-center p-5">
+    <div className="h-screen bg-gradient-to-b from-gray-950 to-gray-900 text-white flex flex-col overflow-hidden items-center justify-center">
       <ToastContainer theme="dark" position="top-center" autoClose={800} hideProgressBar />
 
       {/* Compteur fixe en haut */}
-      <div className="fixed top-25 left-0 right-0 z-50 flex justify-center pointer-events-none">
+      <div className="fixed top-20 left-0 right-0 z-50 flex justify-center pointer-events-none">
         <div className="bg-black/80 backdrop-blur-lg px-4 py-1 rounded-full shadow-2xl border border-emerald-500/40">
-          <p className="text-xl  font-bold text-white">
+          <p className="text-xl sm:text-2xl font-bold text-white">
             Appareils scannés : <span className="text-emerald-400">{scannedCount}</span>
           </p>
         </div>
       </div>
 
-      <div className="w-full max-w-md mb-4">
-        <h1 className="text-2xl sm:text-3xl font-bold text-center tracking-tight">
+      <div className="w-full max-w-md my-4">
+        <h1 className="text-2xl font-bold text-center tracking-tight">
           Scanner Code-barres
         </h1>
-      </div>
-
-      {/* Choix dépôt - centré */}
-      <div className="w-full max-w-md mb-6 flex justify-center gap-8">
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="radio"
-            name="depot"
-            value="A"
-            checked={depot === 'A'}
-            onChange={() => setDepot('A')}
-            className="w-5 h-5 accent-emerald-500"
-          />
-          <span className="text-base font-medium">Dépôt A</span>
-        </label>
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="radio"
-            name="depot"
-            value="B"
-            checked={depot === 'B'}
-            onChange={() => setDepot('B')}
-            className="w-5 h-5 accent-blue-500"
-          />
-          <span className="text-base font-medium">Dépôt B</span>
-        </label>
       </div>
 
       {error && (
@@ -286,23 +221,23 @@ export default function ScannerPage() {
       )}
 
       {/* Zone de scan : carrée, très grande, centrée */}
-      <div className="flex-1 flex items-center justify-center w-88 px-4">
+      <div className="flex-1 flex items-center justify-center w-100 px-4">
         <div
           id="scanner-viewport"
           className={`relative w-full max-w-[85vw] aspect-square bg-black rounded-2xl overflow-hidden border-4 ${isScanning ? 'border-emerald-500' : 'border-gray-700'} shadow-2xl shadow-black/60 transition-all duration-300`}
         />
       </div>
 
-      <div className="text-center mb-10">
+      <div className="text-center mb-5 ">
         {isScanning ? (
-          <p className="text-emerald-400 font-medium text-lg animate-pulse">Scanning actif...</p>
+          <p className="text-emerald-400 font-medium  animate-pulse">Scanning actif...</p>
         ) : (
           <p className="text-amber-400 font-medium">Préparation du scanner...</p>
         )}
       </div>
 
       {/* Boutons fixes en bas (petits, centrés) */}
-      <div className="fixed bottom-4 left-0 right-0 flex justify-center gap-4 px-4 z-50">
+      <div className="fixed bottom-14 left-0 right-0 flex justify-center gap-4 px-4 z-50">
         <button
           onClick={() => router.push('/resume')}
           className="bg-indigo-600 hover:bg-indigo-700 px-6 py-2.5 rounded-xl font-semibold shadow-lg transition text-sm"

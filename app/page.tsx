@@ -1,11 +1,12 @@
 "use client";
-import ScannerPage from "./scan/page";
+
+import InventairesPage from "./inventaire/page";
 
 
 export default function Home() {
   return (
     <div>
-      <ScannerPage />
+      <InventairesPage />
     </div>
   );
 }

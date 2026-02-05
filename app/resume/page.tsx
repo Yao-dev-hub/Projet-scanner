@@ -4,8 +4,9 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable'; // Import correct de autoTable
+import autoTable from 'jspdf-autotable';
 
 // ────────────────────────────────────────────────
 // Interfaces pour un typage strict
@@ -33,6 +34,9 @@ interface SummaryResponse {
 // ────────────────────────────────────────────────
 
 export default function ResumePage() {
+  const searchParams = useSearchParams();
+  const inventaireId = searchParams.get('inventaireId');
+
   const [inventaire, setInventaire] = useState<SummaryResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +44,12 @@ export default function ResumePage() {
   useEffect(() => {
     const fetchResume = async () => {
       try {
-        const res = await fetch('/api/summary');
+        let url = '/api/summary';
+        if (inventaireId) {
+          url += `?inventaireId=${inventaireId}`;
+        }
+
+        const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
         const json: unknown = await res.json();
@@ -60,7 +69,7 @@ export default function ResumePage() {
     };
 
     fetchResume();
-  }, []);
+  }, [inventaireId]);
 
   if (loading) {
     return (
@@ -78,8 +87,8 @@ export default function ResumePage() {
       <div className="min-h-screen bg-gradient-to-b from-gray-950 to-black flex items-center justify-center text-white p-6">
         <div className="text-center max-w-md">
           <h1 className="text-5xl font-bold text-red-500 mb-6">Oups !</h1>
-          <p className="text-2xl mb-8">{error || 'Aucun appareil scanné'}</p>
-          <Link href="/scanner" className="inline-block bg-emerald-600 px-10 py-5 rounded-xl hover:bg-emerald-700 text-lg font-bold shadow-lg transition">
+          <p className="text-2xl mb-8">{error || 'Aucun appareil scanné dans cet inventaire'}</p>
+          <Link href="/scan" className="inline-block bg-emerald-600 px-10 py-5 rounded-xl hover:bg-emerald-700 text-lg font-bold shadow-lg transition">
             Retour au scanner
           </Link>
         </div>
@@ -93,13 +102,45 @@ export default function ResumePage() {
   const totalB: number = Number(inventaire.grandTotalB) || 0;
   const totalGeneral: number = Number(inventaire.grandTotal) || 0;
 
+  // Re-groupement par (model, capacity, couleur) pour matcher l'image
+  const regrouped = produits.reduce((acc: Record<string, any>, p: GroupedProduit) => {
+    const key = `${p.model}-${p.capacity}-${p.couleur}`;
+
+    if (!acc[key]) {
+      acc[key] = {
+        model: p.model,
+        capacity: p.capacity,
+        couleur: p.couleur,
+        countA: 0,
+        totalA: 0,
+        countB: 0,
+        totalB: 0,
+        countVente: 0,
+        totalVente: 0,
+      };
+    }
+
+    if (p.depot === 'A') {
+      acc[key].countA += p.nbAppareils;
+      acc[key].totalA += p.quantiteTotale;
+    } else if (p.depot === 'B') {
+      acc[key].countB += p.nbAppareils;
+      acc[key].totalB += p.quantiteTotale;
+    } else if (p.depot === 'Vente') {
+      acc[key].countVente += p.nbAppareils;
+      acc[key].totalVente += p.quantiteTotale;
+    }
+
+    return acc;
+  }, {});
+
   // Fonction pour générer et télécharger le PDF
   const downloadPDF = () => {
     const doc = new jsPDF();
 
     // Titre
     doc.setFontSize(18);
-    doc.text('Résumé Inventaire', 20, 20);
+    doc.text(`Résumé Inventaire #${inventaireId || 'Actuel'}`, 20, 20);
 
     // Date
     doc.setFontSize(12);
@@ -117,18 +158,21 @@ export default function ResumePage() {
     doc.text(`Total général : ${totalGeneral}`, 20, 69);
 
     // Tableau
-    if (produits.length > 0) {
-      const tableColumn = ['Modèle', 'Capacité', 'Couleur', 'Dépôt', 'Quantité totale', 'Nb appareils'];
-      const tableRows = produits.map((group: GroupedProduit) => [
+    if (Object.keys(regrouped).length > 0) {
+      const tableColumn = ['Modèle', 'Capacité', 'Couleur', 'A', 'Total A', 'B', 'Total dépôt vente', 'Dépôt vente', 'Total B', 'Total'];
+      const tableRows = Object.values(regrouped).map((group: any) => [
         group.model,
         group.capacity,
         group.couleur,
-        group.depot,
-        group.quantiteTotale,
-        group.nbAppareils,
+        group.countA,
+        group.totalA,
+        group.countB,
+        group.totalVente,
+        group.countVente,
+        group.totalB,
+        group.totalA + group.totalB + group.totalVente,
       ]);
 
-      // Appel correct à autoTable
       autoTable(doc, {
         head: [tableColumn],
         body: tableRows,
@@ -141,7 +185,7 @@ export default function ResumePage() {
     }
 
     // Pied de page
-    const pageCount = doc.internal.getNumberOfPages();
+    const pageCount = (doc as any).internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
       doc.setFontSize(10);
@@ -149,7 +193,7 @@ export default function ResumePage() {
       doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')} - Page ${i} / ${pageCount}`, 20, doc.internal.pageSize.height - 10);
     }
 
-    doc.save(`Inventaire_${new Date().toISOString().split('T')[0]}.pdf`);
+    doc.save(`Inventaire_${inventaireId || 'Actuel'}_${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
   return (
@@ -159,7 +203,7 @@ export default function ResumePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-6">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
             <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-emerald-400 to-blue-500 bg-clip-text text-transparent">
-              Résumé Inventaire
+              Résumé Inventaire {inventaireId ? `#${inventaireId}` : ''}
             </h1>
             <p className="text-lg text-gray-300 capitalize">{date}</p>
           </div>
@@ -194,20 +238,28 @@ export default function ResumePage() {
                   <th className="p-4 text-left font-semibold">Modèle</th>
                   <th className="p-4 text-left font-semibold">Capacité</th>
                   <th className="p-4 text-left font-semibold">Couleur</th>
-                  <th className="p-4 text-center font-semibold">Dépôt</th>
-                  <th className="p-4 text-center font-semibold">Quantité totale</th>
-                  <th className="p-4 text-center font-semibold">Nb appareils</th>
+                  <th className="p-4 text-center font-semibold">A</th>
+                  <th className="p-4 text-center font-semibold">Total A</th>
+                  <th className="p-4 text-center font-semibold">B</th>
+                  <th className="p-4 text-center font-semibold">Total dépôt vente</th>
+                  <th className="p-4 text-center font-semibold">Dépôt vente</th>
+                  <th className="p-4 text-center font-semibold">Total B</th>
+                  <th className="p-4 text-center font-semibold">Total</th>
                 </tr>
               </thead>
               <tbody>
-                {produits.map((group: GroupedProduit, idx: number) => (
+                {Object.values(regrouped).map((group: any, idx: number) => (
                   <tr key={idx} className="border-b border-gray-800 hover:bg-gray-800/50 transition">
                     <td className="p-4 font-semibold">{group.model}</td>
                     <td className="p-4">{group.capacity}</td>
                     <td className="p-4">{group.couleur}</td>
-                    <td className="p-4 text-center">{group.depot}</td>
-                    <td className="p-4 text-center font-bold text-emerald-400">{group.quantiteTotale}</td>
-                    <td className="p-4 text-center">{group.nbAppareils}</td>
+                    <td className="p-4 text-center">{group.countA}</td>
+                    <td className="p-4 text-center font-bold text-emerald-400">{group.totalA}</td>
+                    <td className="p-4 text-center">{group.countB}</td>
+                    <td className="p-4 text-center">{group.totalVente}</td>
+                    <td className="p-4 text-center">{group.countVente}</td>
+                    <td className="p-4 text-center font-bold text-blue-400">{group.totalB}</td>
+                    <td className="p-4 text-center font-bold text-yellow-400">{group.totalA + group.totalB + group.totalVente}</td>
                   </tr>
                 ))}
               </tbody>
