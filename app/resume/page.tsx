@@ -7,6 +7,10 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { FaTableCells } from "react-icons/fa6";
+import { BsUpcScan } from "react-icons/bs";
+import * as XLSX from 'xlsx';
+import { toast } from 'react-toastify/unstyled';
 
 // ────────────────────────────────────────────────
 // Interfaces pour un typage strict
@@ -21,13 +25,28 @@ interface GroupedProduit {
   nbAppareils: number;
 }
 
+interface Scan {
+  barcode: string;
+  marque: string;
+  model: string;
+  capacity: string;
+  couleur: string;
+  depot: string;        // ← c'est ton "grade" / qualité
+  depotVente: string | null;
+  quantite: number;
+  prixUnitaire: number | null;
+  description: string | null;
+  // dateScan?: string; // si tu veux l'ajouter (createdAt du scan)
+}
+
 interface SummaryResponse {
   produits: GroupedProduit[];
+  scans: Scan[]; // Liste des scans individuels pour l'export Excel
   grandTotalA: number;
   grandTotalB: number;
   grandTotal: number;
   date: string;
-  inventaireId?: number; // Optionnel, ajouté par l'API
+  inventaireId?: number;
 }
 
 // ────────────────────────────────────────────────
@@ -55,7 +74,6 @@ export default function ResumePage() {
 
         const json: unknown = await res.json();
 
-        // Vérification sécurisée
         if (json && typeof json === 'object' && 'error' in json) {
           throw new Error((json as { error: string }).error);
         }
@@ -74,7 +92,7 @@ export default function ResumePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-950 to-black flex items-center justify-center text-white">
+      <div className="min-h-screen bg-linear-to-b from-gray-950 to-black flex items-center justify-center text-white">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-t-4 border-emerald-500 rounded-full animate-spin mx-auto mb-6"></div>
           <p className="text-xl font-medium">Chargement de l’inventaire...</p>
@@ -85,7 +103,7 @@ export default function ResumePage() {
 
   if (error || !inventaire) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-950 to-black flex items-center justify-center text-white p-6">
+      <div className="min-h-screen bg-linear-to-b from-gray-950 to-black flex items-center justify-center text-white p-6">
         <div className="text-center max-w-md">
           <h1 className="text-5xl font-bold text-red-500 mb-6">Oups !</h1>
           <p className="text-2xl mb-8">{error || 'Aucun appareil scanné dans cet inventaire'}</p>
@@ -98,12 +116,13 @@ export default function ResumePage() {
   }
 
   const produits: GroupedProduit[] = Array.isArray(inventaire.produits) ? inventaire.produits : [];
+  const scans: Scan[] = Array.isArray(inventaire.scans) ? inventaire.scans : [];
   const date: string = inventaire.date || new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const totalA: number = Number(inventaire.grandTotalA) || 0;
   const totalB: number = Number(inventaire.grandTotalB) || 0;
   const totalGeneral: number = Number(inventaire.grandTotal) || 0;
 
-  // Re-groupement par (model, capacity, couleur) pour matcher l'image
+  // Re-groupement pour le tableau (inchangé)
   const regrouped = produits.reduce((acc: Record<string, any>, p: GroupedProduit) => {
     const key = `${p.model}-${p.capacity}-${p.couleur}`;
 
@@ -135,20 +154,17 @@ export default function ResumePage() {
     return acc;
   }, {});
 
-  // Fonction pour générer et télécharger le PDF
+  // Fonction pour générer et télécharger le PDF (inchangé)
   const downloadPDF = () => {
     const doc = new jsPDF();
 
-    // Titre avec ID
     doc.setFontSize(18);
     doc.text(`Résumé Inventaire #${inventaireId || 'Actuel'}`, 20, 20);
 
-    // Date
     doc.setFontSize(12);
     doc.setTextColor(100);
     doc.text(`Date : ${date}`, 20, 30);
 
-    // Totaux
     doc.setFontSize(14);
     doc.setTextColor(0);
     doc.text('Totaux :', 20, 45);
@@ -158,7 +174,6 @@ export default function ResumePage() {
     doc.text(`Dépôt B : ${totalB}`, 20, 62);
     doc.text(`Total général : ${totalGeneral}`, 20, 69);
 
-    // Tableau
     if (Object.keys(regrouped).length > 0) {
       const tableColumn = ['Modèle', 'Capacité', 'Couleur', 'A', 'Total A', 'B', 'Total dépôt vente', 'Dépôt vente', 'Total B', 'Total'];
       const tableRows = Object.values(regrouped).map((group: any) => [
@@ -185,7 +200,6 @@ export default function ResumePage() {
       });
     }
 
-    // Pied de page
     const pageCount = (doc as any).internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
@@ -197,13 +211,42 @@ export default function ResumePage() {
     doc.save(`Inventaire_${inventaireId || 'Actuel'}_${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
+  // Fonction pour exporter tous les scans individuels en Excel
+  const downloadExcel = () => {
+    if (scans.length === 0) {
+      toast.error('Aucun scan à exporter');
+      return;
+    }
+
+    // Format des lignes pour Excel (1 scan = 1 ligne)
+    const excelData = scans.map(scan => ({
+      'Code Barre': scan.barcode,
+      'Marque': scan.marque || '',
+      'Modèle': scan.model || '',
+      'Capacité': scan.capacity || '',
+      'Couleur': scan.couleur || '',
+      'Dépôt (Grade)': scan.depot || '',           // ← ton grade est ici
+      'Dépôt Vente': scan.depotVente || '',
+      'Quantité': scan.quantite || 1,
+      'Prix unitaire': scan.prixUnitaire !== null ? scan.prixUnitaire : '',
+      'Description': scan.description || '',
+      // 'Date scan': scan.dateScan || '', // décommente si tu l'as ajouté dans l'API
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Scans');
+
+    XLSX.writeFile(workbook, `Scans_Inv_${inventaireId || 'Actuel'}_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-950 via-gray-900 to-black text-white p-15">
+    <div className="min-h-screen bg-linear-to-b from-gray-950 via-gray-900 to-black text-white p-15">
       {/* En-tête */}
       <header className="sticky top-0 z-10 bg-black/80 backdrop-blur-lg rounded-2xl py-4 border-2 border-gray-700/50 shadow-2xl mb-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-6">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-            <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-emerald-400 to-blue-500 bg-clip-text text-transparent">
+            <h1 className="text-2xl sm:text-3xl font-bold bg-linear-to-r from-emerald-400 to-blue-500 bg-clip-text text-transparent">
               Résumé Inventaire {inventaireId ? `#${inventaireId}` : ''}
             </h1>
             <p className="text-lg text-gray-300 capitalize">{date}</p>
@@ -280,36 +323,36 @@ export default function ResumePage() {
         <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4">
           <Link
             href={`/scan?inventaireId=${inventaireId}`}
-            className="bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 px-5 py-3 rounded-2xl font-bold shadow-xl hover:shadow-2xl transition-all transform hover:scale-105 text-center"
+            className="bg-linear-to-r flex items-center justify-center from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 px-5 py-3 rounded-2xl font-bold shadow-xl hover:shadow-2xl transition-all transform hover:scale-105 text-center"
           >
-            Continuer à scanner
+            <BsUpcScan className="mr-2" /> Continuer à scanner
           </Link>
 
-          <button
-            onClick={async () => {
-              if (!confirm('Vider cet inventaire ? Cette action est irréversible.')) return;
-              try {
-                await fetch('/api/reset', { method: 'POST' });
-                window.location.reload();
-              } catch {
-                alert('Erreur lors du vidage');
-              }
-            }}
-            className="bg-gradient-to-r from-red-700 to-red-800 hover:from-red-800 hover:to-red-900 px-5 py-3 rounded-2xl font-bold shadow-xl hover:shadow-2xl transition-all transform hover:scale-105 text-center"
-          >
-            Vider l’inventaire
-          </button>
+          <Link href="/" className="flex justify-center items-center gap-2 bg-linear-to-r from-red-700 to-red-800 hover:from-red-800 hover:to-red-900 px-5 py-3 rounded-2xl font-bold shadow-xl hover:shadow-2xl transition-all transform hover:scale-105 text-center">
+            <FaTableCells /> Voir l’inventaire
+          </Link>
 
           {/* Bouton Télécharger PDF */}
           {produits.length > 0 && (
             <button
               onClick={downloadPDF}
-              className="bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-700 hover:to-indigo-800 px-5 py-3 rounded-2xl font-bold shadow-xl hover:shadow-2xl transition-all transform hover:scale-105 text-center flex items-center gap-2"
+              className="bg-linear-to-r from-purple-600 to-indigo-700 hover:from-purple-700 hover:to-indigo-800 px-5 py-3 rounded-2xl font-bold shadow-xl hover:shadow-2xl transition-all transform hover:scale-105 text-center flex items-center gap-2"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               Télécharger PDF
+            </button>
+          )}
+
+          {/* Bouton Télécharger Excel - même style que les autres */}
+          {produits.length > 0 && (
+            <button
+              onClick={downloadExcel}
+              className="bg-linear-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 px-5 py-3 rounded-2xl font-bold shadow-xl hover:shadow-2xl transition-all transform hover:scale-105 text-center flex items-center gap-2"
+            >
+              <FaTableCells className="w-5 h-5" />
+              Télécharger Excel
             </button>
           )}
         </div>

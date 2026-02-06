@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // app/scanner/page.tsx
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -9,6 +10,8 @@ import Quagga from '@ericblade/quagga2';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { BsUpcScan } from "react-icons/bs";
+
 
 export default function ScannerPage() {
   const searchParams = useSearchParams();
@@ -212,8 +215,8 @@ export default function ScannerPage() {
       <ToastContainer theme="dark" position="top-center" autoClose={800} hideProgressBar />
 
       {/* Compteur fixe en haut */}
-      <div className="fixed top-18 left-0 right-0 z-50 flex justify-center pointer-events-none">
-        <div className="bg-black/80 backdrop-blur-lg px-4 py-3 rounded-full shadow-2xl border border-emerald-500/40">
+      <div className="fixed top-15 left-0 right-0 z-50 flex justify-center pointer-events-none">
+        <div className="bg-black/80 backdrop-blur-lg px-4 py-1 rounded-full shadow-2xl border border-emerald-500/40">
           <p className="text-xl  font-bold text-white">
             Appareils scannés : <span className="text-emerald-400">{scannedCount}</span>
           </p>
@@ -249,7 +252,7 @@ export default function ScannerPage() {
       </div>
 
       {/* Boutons fixes en bas */}
-      <div className="fixed bottom-15 left-0 right-0 flex justify-center gap-4 px-4 z-50">
+      <div className="fixed bottom-14 left-0 right-0 flex justify-center gap-4 px-4 z-50">
         <button
           onClick={() => router.push(`/resume?inventaireId=${currentInventaireId}`)}
           className="bg-indigo-600 hover:bg-indigo-700 px-6 py-2.5 rounded-xl font-semibold shadow-lg transition text-sm"
