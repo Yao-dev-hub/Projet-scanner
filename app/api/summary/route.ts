@@ -12,8 +12,11 @@ export async function GET(request: Request) {
 
     if (inventaireIdParam) {
       inventaireId = Number(inventaireIdParam);
+      if (isNaN(inventaireId)) {
+        return NextResponse.json({ error: 'ID inventaire invalide' }, { status: 400 });
+      }
     } else {
-      // Prend le dernier inventaire du jour
+      // Fallback : dernier inventaire du jour
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
 
@@ -43,6 +46,7 @@ export async function GET(request: Request) {
         grandTotal: 0,
         date: new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
         message: 'Aucun appareil scanné dans cet inventaire',
+        inventaireId,
       });
     }
 

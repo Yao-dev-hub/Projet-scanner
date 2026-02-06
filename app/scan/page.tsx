@@ -1,16 +1,23 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // app/scanner/page.tsx
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// app/scanner/page.tsx
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
 import Quagga from '@ericblade/quagga2';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 export default function ScannerPage() {
+  const searchParams = useSearchParams();
+  const inventaireIdFromUrl = searchParams.get('inventaireId');
+
   const [scannedCount, setScannedCount] = useState(0);
-  const [currentInventaireId, setCurrentInventaireId] = useState<number | null>(null);
+  const [currentInventaireId, setCurrentInventaireId] = useState<number | null>(
+    inventaireIdFromUrl ? Number(inventaireIdFromUrl) : null
+  );
   const [isScanning, setIsScanning] = useState(false);
   const [error, setError] = useState<string>('');
   const router = useRouter();
@@ -35,9 +42,11 @@ export default function ScannerPage() {
     } catch {}
   };
 
-  // Créer ou récupérer l'inventaire au montage
+  // Si pas d'inventaireId dans l'URL, en créer un nouveau
   useEffect(() => {
     const initInventaire = async () => {
+      if (currentInventaireId) return; // Déjà passé via URL
+
       try {
         const res = await fetch('/api/inventaire', { method: 'POST' });
         const data = await res.json();
@@ -51,7 +60,7 @@ export default function ScannerPage() {
     };
 
     initInventaire();
-  }, []);
+  }, [currentInventaireId]);
 
   useEffect(() => {
     if (!currentInventaireId) return;
@@ -110,7 +119,7 @@ export default function ScannerPage() {
         Quagga.start();
         setIsScanning(true);
 
-        // Détection + incrémentation rapide
+        // Détection + incrémentation conditionnelle
         Quagga.onDetected(async (data) => {
           let code = data?.codeResult?.code?.trim();
           if (!code) return;
@@ -118,12 +127,7 @@ export default function ScannerPage() {
           // Nettoyage agressif
           code = code.replace(/[^0-9]/g, '');
 
-          // Mise à jour compteur immédiat
-          setScannedCount(prev => prev + 1);
-          playSuccessBeep();
-          if (navigator.vibrate) navigator.vibrate(150);
-
-          // Appel API pour incrémenter quantité
+          // Appel API AVANT toute incrémentation
           try {
             const res = await fetch('/api/scan', {
               method: 'POST',
@@ -137,15 +141,23 @@ export default function ScannerPage() {
             const json = await res.json();
 
             if (!res.ok || json.error) {
-              toast.error(json.error || 'Erreur ajout', { autoClose: 100 });
-            } else {
-              toast.success(`+1 (${json.produit.model} ${json.produit.capacity})`, { autoClose: 800 });
+              toast.error(json.error || 'Erreur ajout (déjà scanné ?)', { autoClose: 1200 });
+              // Pas d'incrémentation ici
+              return;
             }
+
+            // SEULEMENT si succès API → on incrémente et joue le son
+            setScannedCount(prev => prev + 1);
+            playSuccessBeep();
+            if (navigator.vibrate) navigator.vibrate(150);
+
+            toast.success(`+1 (${json.produit.model} ${json.produit.capacity})`, { autoClose: 800 });
           } catch {
             toast.error('Erreur réseau', { autoClose: 1200 });
+            // Pas d'incrémentation en cas d'erreur réseau
           }
 
-          // Re-démarre le scanner très vite
+          // Re-démarre le scanner très vite (même en cas d'erreur)
           setTimeout(() => {
             if (isMounted.current) {
               Quagga.start();
@@ -154,7 +166,7 @@ export default function ScannerPage() {
           }, 600);
         });
 
-        // Overlay visuel
+        // Overlay visuel (inchangé)
         Quagga.onProcessed((result) => {
           const ctx = Quagga.canvas?.ctx?.overlay;
           const canvas = Quagga.canvas?.dom?.overlay;
@@ -196,20 +208,20 @@ export default function ScannerPage() {
   };
 
   return (
-    <div className="h-screen bg-gradient-to-b from-gray-950 to-gray-900 text-white flex flex-col overflow-hidden items-center justify-center">
+    <div className="h-screen bg-linear-to-b from-gray-950 to-gray-900 text-white flex flex-col overflow-hidden items-center justify-center">
       <ToastContainer theme="dark" position="top-center" autoClose={800} hideProgressBar />
 
       {/* Compteur fixe en haut */}
-      <div className="fixed top-20 left-0 right-0 z-50 flex justify-center pointer-events-none">
-        <div className="bg-black/80 backdrop-blur-lg px-4 py-1 rounded-full shadow-2xl border border-emerald-500/40">
-          <p className="text-xl sm:text-2xl font-bold text-white">
+      <div className="fixed top-18 left-0 right-0 z-50 flex justify-center pointer-events-none">
+        <div className="bg-black/80 backdrop-blur-lg px-4 py-3 rounded-full shadow-2xl border border-emerald-500/40">
+          <p className="text-xl  font-bold text-white">
             Appareils scannés : <span className="text-emerald-400">{scannedCount}</span>
           </p>
         </div>
       </div>
 
-      <div className="w-full max-w-md my-4">
-        <h1 className="text-2xl font-bold text-center tracking-tight">
+      <div className="w-full max-w-md my-5">
+        <h1 className="text-2xl  font-bold text-center tracking-tight">
           Scanner Code-barres
         </h1>
       </div>
@@ -221,25 +233,25 @@ export default function ScannerPage() {
       )}
 
       {/* Zone de scan : carrée, très grande, centrée */}
-      <div className="flex-1 flex items-center justify-center w-100 px-4">
+      <div className="flex-1 flex items-center justify-center w-90 px-4">
         <div
           id="scanner-viewport"
           className={`relative w-full max-w-[85vw] aspect-square bg-black rounded-2xl overflow-hidden border-4 ${isScanning ? 'border-emerald-500' : 'border-gray-700'} shadow-2xl shadow-black/60 transition-all duration-300`}
         />
       </div>
 
-      <div className="text-center mb-5 ">
+      <div className="text-center mb-6">
         {isScanning ? (
-          <p className="text-emerald-400 font-medium  animate-pulse">Scanning actif...</p>
+          <p className="text-emerald-400 font-medium text-lg animate-pulse">Scanning actif...</p>
         ) : (
           <p className="text-amber-400 font-medium">Préparation du scanner...</p>
         )}
       </div>
 
-      {/* Boutons fixes en bas (petits, centrés) */}
-      <div className="fixed bottom-14 left-0 right-0 flex justify-center gap-4 px-4 z-50">
+      {/* Boutons fixes en bas */}
+      <div className="fixed bottom-15 left-0 right-0 flex justify-center gap-4 px-4 z-50">
         <button
-          onClick={() => router.push('/resume')}
+          onClick={() => router.push(`/resume?inventaireId=${currentInventaireId}`)}
           className="bg-indigo-600 hover:bg-indigo-700 px-6 py-2.5 rounded-xl font-semibold shadow-lg transition text-sm"
         >
           Voir le résumé

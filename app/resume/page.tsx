@@ -27,6 +27,7 @@ interface SummaryResponse {
   grandTotalB: number;
   grandTotal: number;
   date: string;
+  inventaireId?: number; // Optionnel, ajouté par l'API
 }
 
 // ────────────────────────────────────────────────
@@ -138,7 +139,7 @@ export default function ResumePage() {
   const downloadPDF = () => {
     const doc = new jsPDF();
 
-    // Titre
+    // Titre avec ID
     doc.setFontSize(18);
     doc.text(`Résumé Inventaire #${inventaireId || 'Actuel'}`, 20, 20);
 
@@ -278,7 +279,7 @@ export default function ResumePage() {
         {/* Boutons */}
         <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4">
           <Link
-            href="/scan"
+            href={`/scan?inventaireId=${inventaireId}`}
             className="bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 px-5 py-3 rounded-2xl font-bold shadow-xl hover:shadow-2xl transition-all transform hover:scale-105 text-center"
           >
             Continuer à scanner

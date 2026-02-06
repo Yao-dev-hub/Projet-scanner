@@ -1,4 +1,5 @@
 // app/api/inventaire/route.ts
+// app/api/inventaire/route.ts
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 
@@ -10,6 +11,7 @@ export async function GET() {
         date: true,
         createdAt: true,
       },
+      orderBy: { createdAt: 'desc' }, // Les plus récents en premier
     });
 
     // Ajouter le nb scans pour chaque inventaire
@@ -37,25 +39,7 @@ export async function GET() {
 
 export async function POST() {
   try {
-    // Cherche le dernier inventaire créé aujourd’hui
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-
-    const lastInventaire = await prisma.inventaire.findFirst({
-      where: { date: { gte: todayStart } },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    if (lastInventaire) {
-      return NextResponse.json({
-        success: true,
-        id: lastInventaire.id,
-        date: lastInventaire.date.toISOString(),
-        message: `Inventaire #${lastInventaire.id} repris (créé aujourd’hui)`,
-      });
-    }
-
-    // Création d’un nouvel inventaire
+    // Toujours créer un nouvel inventaire (pas de reprise)
     const inventaire = await prisma.inventaire.create({
       data: {
         date: new Date(),

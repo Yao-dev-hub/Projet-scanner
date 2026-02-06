@@ -22,26 +22,49 @@ export default function InventairesPage() {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  useEffect(() => {
-    const fetchInventaires = async () => {
-      try {
-        const res = await fetch('/api/inventaire');
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  // Charger la liste des inventaires avec debug
+  const loadInventaires = async () => {
+    setLoading(true);
+    setError(null);
 
-        const json = await res.json();
-        if (json.error) throw new Error(json.error);
+    try {
+      console.log('Chargement des inventaires...');
+      const res = await fetch('/api/inventaire');
+      console.log('Statut réponse:', res.status);
 
-        setInventaires(json.inventaires || []);
-      } catch (err: any) {
-        setError(err.message || 'Impossible de charger les inventaires');
-      } finally {
-        setLoading(false);
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Erreur HTTP ${res.status}: ${errorText}`);
       }
-    };
 
-    fetchInventaires();
+      const json = await res.json();
+      console.log('Réponse JSON complète:', json);
+
+      if (json.error) {
+        throw new Error(json.error);
+      }
+
+      // Vérification que la clé existe
+      const invList = json.inventaires || json.data || [];
+      if (!Array.isArray(invList)) {
+        throw new Error('Format inattendu : inventaires n’est pas un tableau');
+      }
+
+      setInventaires(invList);
+    } catch (err: any) {
+      console.error('Erreur complète lors du chargement:', err);
+      setError(err.message || 'Impossible de charger les inventaires');
+      toast.error(err.message || 'Erreur lors du chargement des inventaires');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadInventaires();
   }, []);
 
+  // Créer un nouvel inventaire et rediriger
   const createNewInventaire = async () => {
     try {
       const res = await fetch('/api/inventaire', { method: 'POST' });
@@ -50,21 +73,26 @@ export default function InventairesPage() {
       const json = await res.json();
       if (json.error) throw new Error(json.error);
 
-      toast.success(json.message || 'Nouvel inventaire créé !', { autoClose: 2000 });
-      router.push('/scan'); // Redirection vers la page de scan
+      toast.success(json.message || `Nouvel inventaire #${json.id} créé !`, { autoClose: 2000 });
+
+      // Rafraîchir la liste
+      await loadInventaires();
+
+      // Rediriger vers scanner avec le nouvel ID
+      router.push(`/scan?inventaireId=${json.id}`);
     } catch (err: any) {
       toast.error(err.message || 'Erreur lors de la création de l’inventaire');
     }
   };
 
-  // Calcul des stats pour les cards
+  // Stats des cards
   const totalInventaires = inventaires.length;
-  const totalScans = inventaires.reduce((sum, inv) => sum + inv.nbScans, 0);
-  const dernierInventaire = inventaires.length > 0 ? inventaires[0] : null; // Le plus récent est en premier (tri par createdAt desc)
+  const totalScans = inventaires.reduce((sum, inv) => sum + (inv.nbScans || 0), 0);
+  const dernierInventaire = inventaires[0] || null; // Le plus récent en premier
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-linear-to-b from-gray-950 to-black flex items-center justify-center text-white">
+      <div className="min-h-screen bg-gradient-to-b from-gray-950 to-black flex items-center justify-center text-white">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-t-4 border-emerald-500 rounded-full animate-spin mx-auto mb-6"></div>
           <p className="text-xl font-medium">Chargement des inventaires...</p>
@@ -75,25 +103,28 @@ export default function InventairesPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-linear-to-b from-gray-950 to-black flex items-center justify-center text-white p-6">
+      <div className="min-h-screen bg-gradient-to-b from-gray-950 to-black flex items-center justify-center text-white p-6">
         <div className="text-center max-w-md">
           <h1 className="text-5xl font-bold text-red-500 mb-6">Oups !</h1>
           <p className="text-2xl mb-8">{error}</p>
-          <Link href="/scan" className="inline-block bg-emerald-600 px-10 py-5 rounded-xl hover:bg-emerald-700 text-lg font-bold shadow-lg transition">
-            Commencer un scan
-          </Link>
+          <button
+            onClick={loadInventaires}
+            className="bg-emerald-600 hover:bg-emerald-700 px-10 py-5 rounded-xl text-lg font-bold shadow-lg transition"
+          >
+            Réessayer
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-gray-950 via-gray-900 to-black text-white px-20">
+    <div className="min-h-screen bg-gradient-to-b from-gray-950 via-gray-900 to-black text-white p-6">
       <ToastContainer theme="dark" position="top-center" />
 
       <header className="sticky top-0 z-10 bg-black/80 backdrop-blur-lg border-b border-gray-800/50 py-4 mb-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="text-3xl sm:text-4xl font-bold bg-linear-to-r from-emerald-400 to-blue-500 bg-clip-text text-transparent text-center">
+          <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-emerald-400 to-blue-500 bg-clip-text text-transparent text-center">
             Dashboard Inventaires
           </h1>
         </div>
@@ -101,7 +132,6 @@ export default function InventairesPage() {
 
       {/* Cards statistiques en haut */}
       <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
-        {/* Card 1 - Nombre total d'inventaires */}
         <div className="bg-gray-900/60 backdrop-blur-md p-6 rounded-2xl border border-emerald-500/30 shadow-xl flex items-center gap-5">
           <div className="bg-emerald-500/20 p-4 rounded-xl">
             <FaClipboardList className="text-emerald-400 text-4xl" />
@@ -112,7 +142,6 @@ export default function InventairesPage() {
           </div>
         </div>
 
-        {/* Card 2 - Nombre total de scans */}
         <div className="bg-gray-900/60 backdrop-blur-md p-6 rounded-2xl border border-blue-500/30 shadow-xl flex items-center gap-5">
           <div className="bg-blue-500/20 p-4 rounded-xl">
             <FaBarcode className="text-blue-400 text-4xl" />
@@ -123,7 +152,6 @@ export default function InventairesPage() {
           </div>
         </div>
 
-        {/* Card 3 - Dernier inventaire */}
         <div className="bg-gray-900/60 backdrop-blur-md p-6 rounded-2xl border border-purple-500/30 shadow-xl flex items-center gap-5">
           <div className="bg-purple-500/20 p-4 rounded-xl">
             <FaCalendarAlt className="text-purple-400 text-4xl" />
@@ -145,11 +173,11 @@ export default function InventairesPage() {
       </div>
 
       <main className="max-w-7xl mx-auto">
-        {/* Bouton pour créer un nouvel inventaire */}
+        {/* Bouton créer */}
         <div className="mb-8 text-center">
           <button
             onClick={createNewInventaire}
-            className="bg-linear-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 px-8 py-4 rounded-xl font-bold text-lg shadow-xl hover:shadow-2xl transition-all transform hover:scale-105"
+            className="bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 px-8 py-4 rounded-xl font-bold text-lg shadow-xl hover:shadow-2xl transition-all transform hover:scale-105"
           >
             Créer un nouvel inventaire
           </button>
@@ -172,7 +200,14 @@ export default function InventairesPage() {
                 {inventaires.map((inv) => (
                   <tr key={inv.id} className="border-b border-gray-800 hover:bg-gray-800/50 transition">
                     <td className="p-4 font-semibold"># {inv.id}</td>
-                    <td className="p-4">{new Date(inv.createdAt).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</td>
+                    <td className="p-4">
+                      {new Date(inv.createdAt).toLocaleDateString('fr-FR', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                      })}
+                    </td>
                     <td className="p-4 text-center font-bold text-emerald-400">{inv.nbScans}</td>
                     <td className="p-4 text-center flex justify-center gap-4">
                       <Link
@@ -182,7 +217,7 @@ export default function InventairesPage() {
                         Voir détails
                       </Link>
                       <Link
-                        href="/scan"
+                        href={`/scan?inventaireId=${inv.id}`}
                         className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-xl font-semibold shadow-lg transition text-sm"
                       >
                         Scanner

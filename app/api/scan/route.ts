@@ -6,17 +6,25 @@ import { NextResponse } from 'next/server';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { barcode: rawBarcode, inventaireId } = body;
+    const { barcode: rawBarcode, inventaireId: rawInventaireId } = body;
 
     // Nettoyage agressif du barcode
     const barcode = rawBarcode?.trim()?.replace(/[^0-9]/g, '');
 
     if (!barcode || barcode.length < 8) {
-      return NextResponse.json({ error: 'Code-barres invalide (minimum 8 chiffres)' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Code-barres invalide (minimum 8 chiffres)' },
+        { status: 400 }
+      );
     }
 
-    if (!inventaireId) {
-      return NextResponse.json({ error: 'ID inventaire manquant' }, { status: 400 });
+    // Validation de l'inventaireId
+    const inventaireId = Number(rawInventaireId);
+    if (isNaN(inventaireId) || inventaireId <= 0) {
+      return NextResponse.json(
+        { error: 'ID inventaire invalide ou manquant' },
+        { status: 400 }
+      );
     }
 
     console.log('Scan reçu :', { barcode, inventaireId });
@@ -33,7 +41,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // 2. Vérifier si déjà scanné dans cet inventaire
+    // 2. Vérifier si déjà scanné dans cet inventaire précis
     const scanExistant = await prisma.scan.findFirst({
       where: {
         barcode,
@@ -57,7 +65,12 @@ export async function POST(request: Request) {
         createdAt: new Date(),
       },
     });
-    console.log(`Scan enregistré : ${barcode} pour inventaire ${inventaireId}, mes infos du produit :  ${produit}`);
+
+    console.log(
+      `Scan enregistré : ${barcode} pour inventaire ${inventaireId}, produit :`,
+      { model: produit.model, capacity: produit.capacity, depot: produit.depot }
+    );
+
     // 4. Réponse succès avec les vraies infos du produit
     return NextResponse.json({
       success: true,
@@ -72,6 +85,9 @@ export async function POST(request: Request) {
         { status: 409 }
       );
     }
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Erreur serveur lors du scan' },
+      { status: 500 }
+    );
   }
 }
