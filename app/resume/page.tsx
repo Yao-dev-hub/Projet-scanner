@@ -12,6 +12,24 @@ import { BsUpcScan } from "react-icons/bs";
 import * as XLSX from 'xlsx';
 import { toast } from 'react-toastify/unstyled';
 
+// Import shadcn Table components
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
+
+
+
+
+
+
+
 // ────────────────────────────────────────────────
 // Interfaces pour un typage strict
 // ────────────────────────────────────────────────
@@ -36,7 +54,6 @@ interface Scan {
   quantite: number;
   prixUnitaire: number | null;
   description: string | null;
-  // dateScan?: string; // si tu veux l'ajouter (createdAt du scan)
 }
 
 interface SummaryResponse {
@@ -211,26 +228,24 @@ export default function ResumePage() {
     doc.save(`Inventaire_${inventaireId || 'Actuel'}_${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
-  // Fonction pour exporter tous les scans individuels en Excel
+  // Fonction pour exporter tous les scans individuels en Excel (inchangé)
   const downloadExcel = () => {
     if (scans.length === 0) {
       toast.error('Aucun scan à exporter');
       return;
     }
 
-    // Format des lignes pour Excel (1 scan = 1 ligne)
     const excelData = scans.map(scan => ({
       'Code Barre': scan.barcode,
       'Marque': scan.marque || '',
       'Modèle': scan.model || '',
       'Capacité': scan.capacity || '',
       'Couleur': scan.couleur || '',
-      'Dépôt (Grade)': scan.depot || '',           // ← ton grade est ici
+      'Dépôt (Grade)': scan.depot || '',
       'Dépôt Vente': scan.depotVente || '',
       'Quantité': scan.quantite || 1,
       'Prix unitaire': scan.prixUnitaire !== null ? scan.prixUnitaire : '',
       'Description': scan.description || '',
-      // 'Date scan': scan.dateScan || '', // décommente si tu l'as ajouté dans l'API
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(excelData);
@@ -270,56 +285,71 @@ export default function ResumePage() {
         </div>
       </header>
 
-      {/* Tableau */}
+      {/* Tableau avec shadcn/ui */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {produits.length === 0 ? (
           <p className="text-center text-gray-400 text-xl">Aucun appareil scanné dans cet inventaire</p>
         ) : (
-          <div className="overflow-x-auto rounded-2xl border border-gray-700 shadow-2xl bg-gray-900/40 backdrop-blur-sm">
-            <table className="w-full text-sm sm:text-base">
-              <thead className="bg-gray-800/90 sticky top-0">
-                <tr>
-                  <th className="p-4 text-left font-semibold">Modèle</th>
-                  <th className="p-4 text-left font-semibold">Capacité</th>
-                  <th className="p-4 text-left font-semibold">Couleur</th>
-                  <th className="p-4 text-center font-semibold">A</th>
-                  <th className="p-4 text-center font-semibold">Total A</th>
-                  <th className="p-4 text-center font-semibold">B</th>
-                  <th className="p-4 text-center font-semibold">Total dépôt vente</th>
-                  <th className="p-4 text-center font-semibold">Dépôt vente</th>
-                  <th className="p-4 text-center font-semibold">Total B</th>
-                  <th className="p-4 text-center font-semibold">Total</th>
-                </tr>
-              </thead>
-              <tbody>
+          <div className="overflow-x-auto rounded-sm border border-gray-700 shadow-2xl bg-gray-900/40 backdrop-blur-sm">
+            <Table>
+              <TableHeader className="bg-gray-800/90 sticky top-0">
+                <TableRow>
+                  <TableHead className="p-4 text-left font-semibold text-white">Modèle</TableHead>
+                  <TableHead className="p-4 text-left font-semibold text-white">Capacité</TableHead>
+                  <TableHead className="p-4 text-left font-semibold text-white">Couleur</TableHead>
+                  <TableHead className="p-4 text-center font-semibold text-white">A</TableHead>
+                  <TableHead className="p-4 text-center font-semibold text-white">Total A</TableHead>
+                  <TableHead className="p-4 text-center font-semibold text-white">B</TableHead>
+                  <TableHead className="p-4 text-center font-semibold text-white">Total dépôt vente</TableHead>
+                  <TableHead className="p-4 text-center font-semibold text-white">Dépôt vente</TableHead>
+                  <TableHead className="p-4 text-center font-semibold text-white">Total B</TableHead>
+                  <TableHead className="p-4 text-center font-semibold text-white">Total</TableHead>
+                </TableRow>
+              </TableHeader>
+
+              <TableBody>
                 {Object.values(regrouped).map((group: any, idx: number) => (
-                  <tr key={idx} className="border-b border-gray-800 hover:bg-gray-800/50 transition">
-                    <td className="p-4 font-semibold">{group.model}</td>
-                    <td className="p-4">{group.capacity}</td>
-                    <td className="p-4">{group.couleur}</td>
-                    <td className="p-4 text-center">{group.countA}</td>
-                    <td className="p-4 text-center font-bold text-emerald-400">{group.totalA}</td>
-                    <td className="p-4 text-center">{group.countB}</td>
-                    <td className="p-4 text-center">{group.totalVente}</td>
-                    <td className="p-4 text-center">{group.countVente}</td>
-                    <td className="p-4 text-center font-bold text-blue-400">{group.totalB}</td>
-                    <td className="p-4 text-center font-bold text-yellow-400">{group.totalA + group.totalB + group.totalVente}</td>
-                  </tr>
+                  <TableRow
+                    key={idx}
+                    className="border-b border-gray-800 hover:bg-gray-800/50 transition"
+                  >
+                    <TableCell className="p-4 font-semibold text-white">{group.model}</TableCell>
+                    <TableCell className="p-4 text-white">{group.capacity}</TableCell>
+                    <TableCell className="p-4 text-white">{group.couleur}</TableCell>
+                    <TableCell className="p-4 text-center text-white">{group.countA}</TableCell>
+                    <TableCell className="p-4 text-center font-bold text-emerald-400">
+                      {group.totalA}
+                    </TableCell>
+                    <TableCell className="p-4 text-center text-white">{group.countB}</TableCell>
+                    <TableCell className="p-4 text-center text-white">{group.totalVente}</TableCell>
+                    <TableCell className="p-4 text-center text-white">{group.countVente}</TableCell>
+                    <TableCell className="p-4 text-center font-bold text-blue-400">
+                      {group.totalB}
+                    </TableCell>
+                    <TableCell className="p-4 text-center font-bold text-yellow-400">
+                      {group.totalA + group.totalB + group.totalVente}
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-              <tfoot className="bg-gray-900 font-bold">
-                <tr>
-                  <td colSpan={3} className="p-5 text-right text-lg">Totaux :</td>
-                  <td className="p-5 text-center"></td>
-                  <td className="p-5 text-center text-yellow-400 text-2xl">{totalGeneral}</td>
-                  <td className="p-5 text-center"></td>
-                </tr>
-              </tfoot>
-            </table>
+              </TableBody>
+
+              <TableFooter className="bg-gray-900 font-bold">
+                <TableRow>
+                  <TableCell colSpan={3} className="p-5 text-right text-lg text-white">
+                    Totaux :
+                  </TableCell>
+                  <TableCell className="p-5 text-center"></TableCell>
+                  <TableCell className="p-5 text-center text-yellow-400 text-2xl">
+                    {totalGeneral}
+                  </TableCell>
+                  <TableCell className="p-5 text-center"></TableCell>
+                </TableRow>
+              </TableFooter>
+            </Table>
           </div>
         )}
 
-        {/* Boutons */}
+        {/* Boutons (inchangés) */}
         <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4">
           <Link
             href={`/scan?inventaireId=${inventaireId}`}
@@ -345,7 +375,7 @@ export default function ResumePage() {
             </button>
           )}
 
-          {/* Bouton Télécharger Excel - même style que les autres */}
+          {/* Bouton Télécharger Excel */}
           {produits.length > 0 && (
             <button
               onClick={downloadExcel}

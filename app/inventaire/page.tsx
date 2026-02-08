@@ -10,6 +10,15 @@ import 'react-toastify/dist/ReactToastify.css';
 import { FaClipboardList, FaBarcode, FaCalendarAlt } from 'react-icons/fa';
 import { BsUpcScan } from "react-icons/bs";
 
+// Import des composants shadcn Table
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface Inventaire {
   id: number;
@@ -188,47 +197,53 @@ export default function InventairesPage() {
         {inventaires.length === 0 ? (
           <p className="text-center text-gray-400 text-xl">Aucun inventaire disponible</p>
         ) : (
-          <div className="w-full overflow-x-auto rounded-2xl border border-gray-700 shadow-2xl bg-gray-900/40 backdrop-blur-sm">
-            <table className="w-full text-sm sm:text-base">
-              <thead className="bg-gray-800/90 sticky top-0">
-                <tr>
-                  <th className="p-4 text-left font-semibold">ID</th>
-                  <th className="p-4 text-left font-semibold">Date création</th>
-                  <th className="p-4 text-center font-semibold">Nb scans</th>
-                  <th className="p-4 text-center font-semibold">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
+          <div className="w-full overflow-x-auto rounded-sm  border border-gray-700 shadow-2xl bg-gray-900/40 backdrop-blur-sm">
+            <Table>
+              <TableHeader className="bg-gray-800/90 sticky top-0">
+                <TableRow>
+                  <TableHead className="p-4 text-left font-semibold text-white">ID</TableHead>
+                  <TableHead className="p-4 text-left font-semibold text-white">Date création</TableHead>
+                  <TableHead className="p-4 text-center font-semibold text-white">Nb scans</TableHead>
+                  <TableHead className="p-4 text-center font-semibold text-white">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+
+              <TableBody>
                 {inventaires.map((inv) => (
-                  <tr key={inv.id} className="border-b border-gray-800 hover:bg-gray-800/50 transition">
-                    <td className="p-4 font-semibold"># {inv.id}</td>
-                    <td className="p-4">
+                  <TableRow
+                    key={inv.id}
+                    className="border-b border-gray-800 hover:bg-gray-800/50 transition"
+                  >
+                    <TableCell className="p-4 font-semibold text-white"># {inv.id}</TableCell>
+                    <TableCell className="p-4 text-white">
                       {new Date(inv.createdAt).toLocaleDateString('fr-FR', {
                         weekday: 'long',
                         year: 'numeric',
                         month: 'long',
                         day: 'numeric',
                       })}
-                    </td>
-                    <td className="p-4 text-center font-bold text-emerald-400">{inv.nbScans}</td>
-                    <td className="p-4 text-center flex justify-center gap-4">
+                    </TableCell>
+                    <TableCell className="p-4 text-center font-bold text-emerald-400">
+                      {inv.nbScans}
+                    </TableCell>
+                    <TableCell className="p-4 text-center flex justify-center gap-4">
                       <Link
                         href={`/resume?inventaireId=${inv.id}`}
-                        className="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-xl font-semibold shadow-lg transition text-sm"
+                        className="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-xl font-semibold shadow-lg transition text-sm text-white"
                       >
                         Voir détails
                       </Link>
                       <Link
                         href={`/scan?inventaireId=${inv.id}`}
-                        className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-xl font-semibold shadow-lg transition text-sm"
+                        className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-xl font-semibold shadow-lg transition text-sm text-white"
                       >
                         Scanner
                       </Link>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         )}
       </main>
