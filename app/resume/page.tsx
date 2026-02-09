@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// app/resume/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -22,13 +21,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-
-
-
-
-
-
-
 
 // ────────────────────────────────────────────────
 // Interfaces pour un typage strict
@@ -66,9 +58,17 @@ interface SummaryResponse {
   inventaireId?: number;
 }
 
-// ────────────────────────────────────────────────
-// Composant principal
-// ────────────────────────────────────────────────
+interface RegroupedItem {
+  model: string;
+  capacity: string;
+  couleur: string;
+  countA: number;
+  totalA: number;
+  countB: number;
+  totalB: number;
+  countVente: number;
+  totalVente: number;
+}
 
 export default function ResumePage() {
   const searchParams = useSearchParams();
@@ -97,8 +97,9 @@ export default function ResumePage() {
 
         const data = json as SummaryResponse;
         setInventaire(data);
-      } catch (err: any) {
-        setError(err.message || 'Impossible de charger l’inventaire');
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Erreur inconnue';
+        setError(message || 'Impossible de charger l’inventaire');
       } finally {
         setLoading(false);
       }
@@ -109,7 +110,7 @@ export default function ResumePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-linear-to-b from-gray-950 to-black flex items-center justify-center text-white">
+      <div className="min-h-screen bg-gradient-to-b from-gray-950 to-black flex items-center justify-center text-white">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-t-4 border-emerald-500 rounded-full animate-spin mx-auto mb-6"></div>
           <p className="text-xl font-medium">Chargement de l’inventaire...</p>
@@ -120,7 +121,7 @@ export default function ResumePage() {
 
   if (error || !inventaire) {
     return (
-      <div className="min-h-screen bg-linear-to-b from-gray-950 to-black flex items-center justify-center text-white p-6">
+      <div className="min-h-screen bg-gradient-to-b from-gray-950 to-black flex items-center justify-center text-white p-6">
         <div className="text-center max-w-md">
           <h1 className="text-5xl font-bold text-red-500 mb-6">Oups !</h1>
           <p className="text-2xl mb-8">{error || 'Aucun appareil scanné dans cet inventaire'}</p>
@@ -139,8 +140,8 @@ export default function ResumePage() {
   const totalB: number = Number(inventaire.grandTotalB) || 0;
   const totalGeneral: number = Number(inventaire.grandTotal) || 0;
 
-  // Re-groupement pour le tableau (inchangé)
-  const regrouped = produits.reduce((acc: Record<string, any>, p: GroupedProduit) => {
+  // Re-groupement pour le tableau
+  const regrouped = produits.reduce((acc: Record<string, RegroupedItem>, p: GroupedProduit) => {
     const key = `${p.model}-${p.capacity}-${p.couleur}`;
 
     if (!acc[key]) {
@@ -171,7 +172,7 @@ export default function ResumePage() {
     return acc;
   }, {});
 
-  // Fonction pour générer et télécharger le PDF (inchangé)
+  // Fonction pour générer et télécharger le PDF
   const downloadPDF = () => {
     const doc = new jsPDF();
 
@@ -193,7 +194,7 @@ export default function ResumePage() {
 
     if (Object.keys(regrouped).length > 0) {
       const tableColumn = ['Modèle', 'Capacité', 'Couleur', 'A', 'Total A', 'B', 'Total dépôt vente', 'Dépôt vente', 'Total B', 'Total'];
-      const tableRows = Object.values(regrouped).map((group: any) => [
+      const tableRows = Object.values(regrouped).map((group) => [
         group.model,
         group.capacity,
         group.couleur,
@@ -228,7 +229,7 @@ export default function ResumePage() {
     doc.save(`Inventaire_${inventaireId || 'Actuel'}_${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
-  // Fonction pour exporter tous les scans individuels en Excel (inchangé)
+  // Fonction pour exporter tous les scans individuels en Excel
   const downloadExcel = () => {
     if (scans.length === 0) {
       toast.error('Aucun scan à exporter');
@@ -256,12 +257,12 @@ export default function ResumePage() {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-gray-950 via-gray-900 to-black text-white p-15">
+    <div className="min-h-screen bg-gradient-to-b from-gray-950 via-gray-900 to-black text-white p-16">
       {/* En-tête */}
       <header className="sticky top-0 z-10 bg-black/80 backdrop-blur-lg rounded-2xl py-4 border-2 border-gray-700/50 shadow-2xl mb-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-6">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-            <h1 className="text-2xl sm:text-3xl font-bold bg-linear-to-r from-emerald-400 to-blue-500 bg-clip-text text-transparent">
+            <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-emerald-400 to-blue-500 bg-clip-text text-transparent">
               Résumé Inventaire {inventaireId ? `#${inventaireId}` : ''}
             </h1>
             <p className="text-lg text-gray-300 capitalize">{date}</p>
@@ -308,7 +309,7 @@ export default function ResumePage() {
               </TableHeader>
 
               <TableBody>
-                {Object.values(regrouped).map((group: any, idx: number) => (
+                {Object.values(regrouped).map((group: RegroupedItem, idx: number) => (
                   <TableRow
                     key={idx}
                     className="border-b border-gray-800 hover:bg-gray-800/50 transition"
@@ -349,16 +350,16 @@ export default function ResumePage() {
           </div>
         )}
 
-        {/* Boutons (inchangés) */}
+        {/* Boutons */}
         <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4">
           <Link
             href={`/scan?inventaireId=${inventaireId}`}
-            className="bg-linear-to-r flex items-center justify-center from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 px-5 py-3 rounded-2xl font-bold shadow-xl hover:shadow-2xl transition-all transform hover:scale-105 text-center"
+            className="bg-gradient-to-r flex items-center justify-center from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 px-5 py-3 rounded-2xl font-bold shadow-xl hover:shadow-2xl transition-all transform hover:scale-105 text-center"
           >
             <BsUpcScan className="mr-2" /> Continuer à scanner
           </Link>
 
-          <Link href="/" className="flex justify-center items-center gap-2 bg-linear-to-r from-red-700 to-red-800 hover:from-red-800 hover:to-red-900 px-5 py-3 rounded-2xl font-bold shadow-xl hover:shadow-2xl transition-all transform hover:scale-105 text-center">
+          <Link href="/" className="flex justify-center items-center gap-2 bg-gradient-to-r from-red-700 to-red-800 hover:from-red-800 hover:to-red-900 px-5 py-3 rounded-2xl font-bold shadow-xl hover:shadow-2xl transition-all transform hover:scale-105 text-center">
             <FaTableCells /> Voir l’inventaire
           </Link>
 
@@ -366,7 +367,7 @@ export default function ResumePage() {
           {produits.length > 0 && (
             <button
               onClick={downloadPDF}
-              className="bg-linear-to-r from-purple-600 to-indigo-700 hover:from-purple-700 hover:to-indigo-800 px-5 py-3 rounded-2xl font-bold shadow-xl hover:shadow-2xl transition-all transform hover:scale-105 text-center flex items-center gap-2"
+              className="bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-700 hover:to-indigo-800 px-5 py-3 rounded-2xl font-bold shadow-xl hover:shadow-2xl transition-all transform hover:scale-105 text-center flex items-center gap-2"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -379,7 +380,7 @@ export default function ResumePage() {
           {produits.length > 0 && (
             <button
               onClick={downloadExcel}
-              className="bg-linear-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 px-5 py-3 rounded-2xl font-bold shadow-xl hover:shadow-2xl transition-all transform hover:scale-105 text-center flex items-center gap-2"
+              className="bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 px-5 py-3 rounded-2xl font-bold shadow-xl hover:shadow-2xl transition-all transform hover:scale-105 text-center flex items-center gap-2"
             >
               <FaTableCells className="w-5 h-5" />
               Télécharger Excel
