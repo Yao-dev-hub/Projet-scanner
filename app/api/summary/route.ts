@@ -59,7 +59,7 @@ export async function GET(request: Request) {
     }
 
     // Récupère les produits scannés avec TOUS les champs utiles
-    const barcodes = scans.map(s => s.barcode);
+    const barcodes = scans.map((s: { barcode: string }) => s.barcode);
     const produits = await prisma.produit.findMany({
       where: { barcode: { in: barcodes } },
       select: {
