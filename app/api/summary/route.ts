@@ -2,6 +2,20 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 
+// Type précis pour les produits sélectionnés (seuls les champs demandés)
+type ProduitSelected = {
+  barcode: string;
+  marque: string;
+  model: string;
+  capacity: string;
+  couleur: string;
+  depot: string | null;
+  depotVente: string | null;
+  quantite: number;
+  prixUnitaire: number | null;
+  description: string | null;
+};
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -30,20 +44,20 @@ export async function GET(request: Request) {
       inventaireId = lastInventaire.id;
     }
 
-    // Récupère les scans de cet inventaire
+    // Récupère les scans
     const scans = await prisma.scan.findMany({
       where: { inventaireId },
       select: {
         barcode: true,
         depot: true,
-        createdAt: true, // optionnel : date du scan si tu veux l'exporter
+        createdAt: true,
       },
     });
 
     if (scans.length === 0) {
       return NextResponse.json({
         produits: [],
-        scans: [], // ← liste vide pour le front
+        scans: [],
         grandTotalA: 0,
         grandTotalB: 0,
         grandTotal: 0,
@@ -58,21 +72,21 @@ export async function GET(request: Request) {
       });
     }
 
-    // Récupère les produits scannés avec TOUS les champs utiles
-    const barcodes = scans.map((s: { barcode: string }) => s.barcode);
-    const produits = await prisma.produit.findMany({
+    // Récupère les produits – typage précis
+    const barcodes = scans.map(s => s.barcode);
+    const produits: ProduitSelected[] = await prisma.produit.findMany({
       where: { barcode: { in: barcodes } },
       select: {
         barcode: true,
-        marque: true,           // ← ajouté
+        marque: true,
         model: true,
         capacity: true,
         couleur: true,
-        depot: true,            // ← c'est ton "grade"
-        depotVente: true,       // ← si tu veux l'exporter
+        depot: true,
+        depotVente: true,
         quantite: true,
-        prixUnitaire: true,     // ← ajouté
-        description: true,      // ← ajouté si tu veux
+        prixUnitaire: true,
+        description: true,
       },
     });
 
@@ -85,16 +99,16 @@ export async function GET(request: Request) {
         model: produit?.model || 'Inconnu',
         capacity: produit?.capacity || 'Inconnu',
         couleur: produit?.couleur || 'Inconnu',
-        depot: scan.depot || produit?.depot || 'Inconnu', // priorité au scan, sinon produit
+        depot: scan.depot || produit?.depot || 'Inconnu',
         depotVente: produit?.depotVente || 'N/A',
         quantite: produit?.quantite || 1,
         prixUnitaire: produit?.prixUnitaire || null,
         description: produit?.description || null,
-        dateScan: scan.createdAt.toISOString(), // ← date du scan
+        dateScan: scan.createdAt.toISOString(),
       };
     });
 
-    // Groupement pour le tableau (inchangé)
+    // Groupement pour le tableau
     const grouped = produits.reduce((acc: Record<string, {
       model: string;
       capacity: string;
@@ -102,7 +116,7 @@ export async function GET(request: Request) {
       depot: string;
       quantiteTotale: number;
       nbAppareils: number;
-    }>, p) => {
+    }>, p: ProduitSelected) => {  // ← Utilise ProduitSelected ici
       const key = `${p.model || 'Inconnu'}-${p.capacity || 'Inconnu'}-${p.couleur || 'Inconnu'}-${p.depot || 'Inconnu'}`;
 
       if (!acc[key]) {
@@ -122,7 +136,7 @@ export async function GET(request: Request) {
       return acc;
     }, {});
 
-    // Calcul des grands totaux (inchangé)
+    // Calcul des grands totaux
     let grandTotalA = 0;
     let grandTotalB = 0;
     let grandTotalAppareils = 0;
@@ -137,7 +151,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       produits: Object.values(grouped),
-      scans: scansAvecDetails,  // ← liste brute pour Excel (chaque scan = 1 ligne)
+      scans: scansAvecDetails,
       grandTotalA,
       grandTotalB,
       grandTotal,
