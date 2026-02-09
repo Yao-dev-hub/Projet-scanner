@@ -1,11 +1,17 @@
 // app/api/inventaire/route.ts
-// app/api/inventaire/route.ts
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 
+// Définir une interface pour le type des inventaires retournés (basé sur le select)
+interface InventaireResume {
+  id: number;
+  date: Date;
+  createdAt: Date;
+}
+
 export async function GET() {
   try {
-    const inventaires = await prisma.inventaire.findMany({
+    const inventaires: InventaireResume[] = await prisma.inventaire.findMany({
       select: {
         id: true,
         date: true,
@@ -16,7 +22,7 @@ export async function GET() {
 
     // Ajouter le nb scans pour chaque inventaire
     const inventairesAvecNbScans = await Promise.all(
-      inventaires.map(async (inv) => {
+      inventaires.map(async (inv: InventaireResume) => {  // Ajoutez ': InventaireResume' ici
         const nbScans = await prisma.scan.count({
           where: { inventaireId: inv.id },
         });

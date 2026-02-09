@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-// app/inventaires/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -62,10 +60,11 @@ export default function InventairesPage() {
       }
 
       setInventaires(invList);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erreur inconnue';
       console.error('Erreur complète lors du chargement:', err);
-      setError(err.message || 'Impossible de charger les inventaires');
-      toast.error(err.message || 'Erreur lors du chargement des inventaires');
+      setError(message || 'Impossible de charger les inventaires');
+      toast.error(message || 'Erreur lors du chargement des inventaires');
     } finally {
       setLoading(false);
     }
@@ -91,8 +90,9 @@ export default function InventairesPage() {
 
       // Rediriger vers scanner avec le nouvel ID
       router.push(`/scan?inventaireId=${json.id}`);
-    } catch (err: any) {
-      toast.error(err.message || 'Erreur lors de la création de l’inventaire');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erreur inconnue';
+      toast.error(message || 'Erreur lors de la création de l’inventaire');
     }
   };
 
@@ -103,7 +103,7 @@ export default function InventairesPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-linear-to-b from-gray-950 to-black flex items-center justify-center text-white">
+      <div className="min-h-screen bg-gradient-to-b from-gray-950 to-black flex items-center justify-center text-white">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-t-4 border-emerald-500 rounded-full animate-spin mx-auto mb-6"></div>
           <p className="text-xl font-medium">Chargement des inventaires...</p>
@@ -114,7 +114,7 @@ export default function InventairesPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-linear-to-b p-30 from-gray-950 to-black flex items-center justify-center text-white  ">
+      <div className="min-h-screen bg-gradient-to-b from-gray-950 to-black flex items-center justify-center text-white p-8">
         <div className="text-center max-w-md">
           <h1 className="text-5xl font-bold text-red-500 mb-6">Oups !</h1>
           <p className="text-2xl mb-8">{error}</p>
@@ -130,12 +130,12 @@ export default function InventairesPage() {
   }
 
   return (
-    <div className="min-h-screen  bg-linear-to-b from-gray-950 via-gray-900 to-black text-white p-20">
+    <div className="min-h-screen bg-gradient-to-b from-gray-950 via-gray-900 to-black text-white p-20">
       <ToastContainer theme="dark" position="top-center" />
 
       <header className="sticky top-0 z-10 bg-black/80 backdrop-blur-lg border-b border-gray-800/50 py-4 mb-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="text-3xl sm:text-4xl font-bold bg-linear-to-r from-emerald-400 to-blue-500 bg-clip-text text-transparent text-center">
+          <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-emerald-400 to-blue-500 bg-clip-text text-transparent text-center">
             Dashboard Inventaires
           </h1>
         </div>
@@ -185,19 +185,19 @@ export default function InventairesPage() {
 
       <main className="max-w-7xl mx-auto flex flex-col gap-6 justify-center items-center">
         {/* Bouton créer */}
-        <div className="mb-8 text-center ">
+        <div className="mb-8 text-center">
           <button
             onClick={createNewInventaire}
-            className="flex justify-center items-center bg-linear-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 px-6 py-2 rounded-xl font-bold text-lg shadow-xl hover:shadow-2xl transition-all transform hover:scale-105"
+            className="flex justify-center items-center bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 px-6 py-2 rounded-xl font-bold text-lg shadow-xl hover:shadow-2xl transition-all transform hover:scale-105"
           >
-           <BsUpcScan className="mr-2" />Créer un nouvel inventaire
+            <BsUpcScan className="mr-2" />Créer un nouvel inventaire
           </button>
         </div>
 
         {inventaires.length === 0 ? (
           <p className="text-center text-gray-400 text-xl">Aucun inventaire disponible</p>
         ) : (
-          <div className="w-full overflow-x-auto rounded-sm  border border-gray-700 shadow-2xl bg-gray-900/40 backdrop-blur-sm">
+          <div className="w-full overflow-x-auto rounded-sm border border-gray-700 shadow-2xl bg-gray-900/40 backdrop-blur-sm">
             <Table>
               <TableHeader className="bg-gray-800/90 sticky top-0">
                 <TableRow>
