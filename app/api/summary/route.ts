@@ -2,7 +2,14 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 
-// Type précis pour les produits sélectionnés (seuls les champs demandés)
+// Type qui correspond EXACTEMENT aux champs sélectionnés dans la requête
+type ScanSelected = {
+  barcode: string;
+  depot: string;
+  createdAt: Date;
+};
+
+// Type qui correspond EXACTEMENT aux champs sélectionnés pour Produit
 type ProduitSelected = {
   barcode: string;
   marque: string;
@@ -45,7 +52,7 @@ export async function GET(request: Request) {
     }
 
     // Récupère les scans
-    const scans = await prisma.scan.findMany({
+    const scans: ScanSelected[] = await prisma.scan.findMany({
       where: { inventaireId },
       select: {
         barcode: true,
@@ -73,7 +80,8 @@ export async function GET(request: Request) {
     }
 
     // Récupère les produits – typage précis
-    const barcodes = scans.map(s => s.barcode);
+    const barcodes = scans.map((s: ScanSelected) => s.barcode);  // ← CORRECTION ICI
+
     const produits: ProduitSelected[] = await prisma.produit.findMany({
       where: { barcode: { in: barcodes } },
       select: {
@@ -91,7 +99,7 @@ export async function GET(request: Request) {
     });
 
     // Associe chaque scan à son produit complet
-    const scansAvecDetails = scans.map(scan => {
+    const scansAvecDetails = scans.map((scan: ScanSelected) => {
       const produit = produits.find(p => p.barcode === scan.barcode);
       return {
         barcode: scan.barcode,
@@ -116,7 +124,7 @@ export async function GET(request: Request) {
       depot: string;
       quantiteTotale: number;
       nbAppareils: number;
-    }>, p: ProduitSelected) => {  // ← Utilise ProduitSelected ici
+    }>, p: ProduitSelected) => {
       const key = `${p.model || 'Inconnu'}-${p.capacity || 'Inconnu'}-${p.couleur || 'Inconnu'}-${p.depot || 'Inconnu'}`;
 
       if (!acc[key]) {
