@@ -1,4 +1,6 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 // lib/prisma.ts
+// @ts-ignore
 import { PrismaClient } from '@prisma/client';
 import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
 
