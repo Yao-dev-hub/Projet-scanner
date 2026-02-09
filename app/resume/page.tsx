@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import jsPDF from 'jspdf';
@@ -41,7 +41,7 @@ interface Scan {
   model: string;
   capacity: string;
   couleur: string;
-  depot: string;        // ← c'est ton "grade" / qualité
+  depot: string;
   depotVente: string | null;
   quantite: number;
   prixUnitaire: number | null;
@@ -50,7 +50,7 @@ interface Scan {
 
 interface SummaryResponse {
   produits: GroupedProduit[];
-  scans: Scan[]; // Liste des scans individuels pour l'export Excel
+  scans: Scan[];
   grandTotalA: number;
   grandTotalB: number;
   grandTotal: number;
@@ -70,7 +70,8 @@ interface RegroupedItem {
   totalVente: number;
 }
 
-export default function ResumePage() {
+// Composant interne qui utilise useSearchParams (protégé par Suspense)
+function ResumeContent() {
   const searchParams = useSearchParams();
   const inventaireId = searchParams.get('inventaireId');
 
@@ -389,5 +390,21 @@ export default function ResumePage() {
         </div>
       </main>
     </div>
+  );
+}
+
+// Page principale avec Suspense
+export default function ResumePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-b from-gray-950 to-black flex items-center justify-center text-white">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-t-4 border-emerald-500 rounded-full animate-spin mx-auto mb-6"></div>
+          <p className="text-xl font-medium">Chargement du résumé...</p>
+        </div>
+      </div>
+    }>
+      <ResumeContent />
+    </Suspense>
   );
 }

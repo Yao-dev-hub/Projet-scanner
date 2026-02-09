@@ -1,19 +1,15 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// app/scanner/page.tsx
-/* eslint-disable @typescript-eslint/no-explicit-any */
-// app/scanner/page.tsx
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import Quagga from '@ericblade/quagga2';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { BsUpcScan } from "react-icons/bs";
 
-
-export default function ScannerPage() {
+// Composant interne qui contient toute la logique (protégé par Suspense)
+function ScanContent() {
   const searchParams = useSearchParams();
   const inventaireIdFromUrl = searchParams.get('inventaireId');
 
@@ -211,20 +207,20 @@ export default function ScannerPage() {
   };
 
   return (
-    <div className="h-screen bg-linear-to-b from-gray-950 to-gray-900 text-white flex flex-col overflow-hidden items-center justify-center">
+    <div className="h-screen bg-gradient-to-b from-gray-950 to-gray-900 text-white flex flex-col overflow-hidden items-center justify-center">
       <ToastContainer theme="dark" position="top-center" autoClose={800} hideProgressBar />
 
       {/* Compteur fixe en haut */}
       <div className="fixed top-15 left-0 right-0 z-50 flex justify-center pointer-events-none">
         <div className="bg-black/80 backdrop-blur-lg px-4 py-1 rounded-full shadow-2xl border border-emerald-500/40">
-          <p className="text-xl  font-bold text-white">
+          <p className="text-xl font-bold text-white">
             Appareils scannés : <span className="text-emerald-400">{scannedCount}</span>
           </p>
         </div>
       </div>
 
       <div className="w-full max-w-md my-5">
-        <h1 className="text-2xl  font-bold text-center tracking-tight">
+        <h1 className="text-2xl font-bold text-center tracking-tight">
           Scanner Code-barres
         </h1>
       </div>
@@ -282,5 +278,23 @@ export default function ScannerPage() {
         #scanner-viewport video { width: 100% !important; height: 100% !important; object-fit: cover; }
       `}</style>
     </div>
+  );
+}
+
+// Page principale avec Suspense
+export default function ScannerPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="h-screen bg-gradient-to-b from-gray-950 to-gray-900 flex items-center justify-center text-white">
+          <div className="text-center">
+            <div className="w-16 h-16 border-4 border-t-4 border-emerald-500 rounded-full animate-spin mx-auto mb-6"></div>
+            <p className="text-xl font-medium">Initialisation du scanner...</p>
+          </div>
+        </div>
+      }
+    >
+      <ScanContent />
+    </Suspense>
   );
 }
