@@ -105,7 +105,7 @@ export default function ScannerPage() {
         await new Promise<void>((resolve, reject) => {
           Quagga.init(
             {
-              inputStream: { name: 'Live', type: 'LiveStream', target, constraints: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'environment' } },
+              inputStream: { type: 'LiveStream', target, constraints: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'environment' } },
               locator: { patchSize: 'medium', halfSample: true },
               numOfWorkers: navigator.hardwareConcurrency ? Math.min(4, navigator.hardwareConcurrency - 1) : 2,
               frequency: 12,
