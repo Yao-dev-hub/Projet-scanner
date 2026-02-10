@@ -3,55 +3,49 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"  
 }
 
-
 model Inventaire {
-  id           Int      @id @default(autoincrement())
-  date         DateTime @default(now())
-  totalA       Int      @default(0)
-  totalB       Int      @default(0)
-  totalGeneral Int      @default(0)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
+  id Int @id @default(autoincrement())
+  date DateTime @default(now())
+  totalA Int @default(0)
+  totalB Int @default(0)
+  totalGeneral Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   // ← Ajout obligatoire : relation inverse vers tous les Scans de cet inventaire
-  scans        Scan[]
-
+  scans Scan[]
   // Relation vers les produits (déjà présente)
-  produits     Produit[]
+  produits Produit[]
 }
 
 model Produit {
-  id           Int      @id @default(autoincrement())
-  barcode      String   @unique
-  marque       String
-  model        String
-  capacity     String
-  couleur      String
-  depot        String?  // "A" = meilleur qualité, "B" = un peu moins, "Vente", etc.
-  depotVente   String?
-  quantite     Int      @default(1)
+  id Int @id @default(autoincrement())
+  barcode String @unique
+  marque String
+  model String
+  capacity String
+  couleur String
+  depot String? // "A" = meilleur qualité, "B" = un peu moins, "Vente", etc.
+  depotVente String?
+  quantite Int @default(1)
   prixUnitaire Float?
-  description  String?
+  description String?
   inventaireId Int?
-  inventaire   Inventaire? @relation(fields: [inventaireId], references: [id])
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
+  inventaire Inventaire? @relation(fields: [inventaireId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   @@unique([model, capacity, couleur, depot])
 }
 
 model Scan {
-  id           Int      @id @default(autoincrement())
-  barcode      String
-  depot        String
+  id Int @id @default(autoincrement())
+  barcode String
+  depot String
   inventaireId Int
-  createdAt    DateTime @default(now())
-
+  createdAt DateTime @default(now())
   // Relation vers l'inventaire (déjà présente chez toi)
-  inventaire   Inventaire @relation(fields: [inventaireId], references: [id])
-
+  inventaire Inventaire @relation(fields: [inventaireId], references: [id])
   @@unique([barcode, inventaireId])
 }
