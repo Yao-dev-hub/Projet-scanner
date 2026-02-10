@@ -1,16 +1,18 @@
+// lib/prisma.ts
 import { PrismaClient } from '@prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg';
-import { Pool } from 'pg';
+import { PrismaNeon } from '@prisma/adapter-neon';
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,  // ← Charge depuis env (pas besoin de dotenv ici, Next.js gère)
+if (!process.env.DATABASE_URL) {
+  throw new Error('DATABASE_URL is missing');
+}
+
+const adapter = new PrismaNeon({
+  connectionString: process.env.DATABASE_URL,
 });
 
-const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
 
-export const prisma = new PrismaClient({ adapter });
-
-
+export { prisma };
 
 
 
@@ -19,34 +21,41 @@ export const prisma = new PrismaClient({ adapter });
 
 
 
-
-
-
-
-
-
-// /* eslint-disable @typescript-eslint/ban-ts-comment */
-// // lib/prisma.ts
-// // @ts-ignore
 // import { PrismaClient } from '@prisma/client';
-// import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
+// import { PrismaPg } from '@prisma/adapter-pg';
+// import { Pool } from 'pg';
 
-// // Singleton global
-// const prismaClientSingleton = () => {
-//   const adapter = new PrismaBetterSqlite3({
-//     url: 'file:./dev.db', // ou process.env.DATABASE_URL si tu utilises .env
-//   });
+// const pool = new Pool({
+//   connectionString: process.env.DATABASE_URL,  // ← Charge depuis env (pas besoin de dotenv ici, Next.js gère)
+// });
 
-//   return new PrismaClient({ adapter });
-// };
+// const adapter = new PrismaPg(pool);
 
-// declare global {
-//   var prisma: ReturnType<typeof prismaClientSingleton> | undefined;
-// }
+// export const prisma = new PrismaClient({ adapter });
 
-// const prisma = global.prisma ?? prismaClientSingleton();
 
-// if (process.env.NODE_ENV !== 'production') global.prisma = prisma;
+// // /* eslint-disable @typescript-eslint/ban-ts-comment */
+// // // lib/prisma.ts
+// // // @ts-ignore
+// // import { PrismaClient } from '@prisma/client';
+// // import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
 
-// export { prisma };
+// // // Singleton global
+// // const prismaClientSingleton = () => {
+// //   const adapter = new PrismaBetterSqlite3({
+// //     url: 'file:./dev.db', // ou process.env.DATABASE_URL si tu utilises .env
+// //   });
+
+// //   return new PrismaClient({ adapter });
+// // };
+
+// // declare global {
+// //   var prisma: ReturnType<typeof prismaClientSingleton> | undefined;
+// // }
+
+// // const prisma = global.prisma ?? prismaClientSingleton();
+
+// // if (process.env.NODE_ENV !== 'production') global.prisma = prisma;
+
+// // export { prisma };
 
