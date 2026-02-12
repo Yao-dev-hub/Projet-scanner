@@ -6,7 +6,7 @@ import Quagga from '@ericblade/quagga2';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { BsUpcScan } from "react-icons/bs";
+
 
 // Composant interne qui contient toute la logique (protégé par Suspense)
 function ScanContent() {
@@ -23,7 +23,7 @@ function ScanContent() {
   const isMounted = useRef(true);
   const quaggaInitialized = useRef(false);
 
-  // Son de succès
+  // Son de succès (inchangé)
   const playSuccessBeep = () => {
     try {
       const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -41,10 +41,10 @@ function ScanContent() {
     } catch {}
   };
 
-  // Si pas d'inventaireId dans l'URL, en créer un nouveau
+  // Si pas d'inventaireId dans l'URL, en créer un nouveau (inchangé)
   useEffect(() => {
     const initInventaire = async () => {
-      if (currentInventaireId) return; // Déjà passé via URL
+      if (currentInventaireId) return;
 
       try {
         const res = await fetch('/api/inventaire', { method: 'POST' });
@@ -123,10 +123,8 @@ function ScanContent() {
           let code = data?.codeResult?.code?.trim();
           if (!code) return;
 
-          // Nettoyage agressif
           code = code.replace(/[^0-9]/g, '');
 
-          // Appel API AVANT toute incrémentation
           try {
             const res = await fetch('/api/scan', {
               method: 'POST',
@@ -141,11 +139,9 @@ function ScanContent() {
 
             if (!res.ok || json.error) {
               toast.error(json.error || 'Erreur ajout (déjà scanné ?)', { autoClose: 1200 });
-              // Pas d'incrémentation ici
               return;
             }
 
-            // SEULEMENT si succès API → on incrémente et joue le son
             setScannedCount(prev => prev + 1);
             playSuccessBeep();
             if (navigator.vibrate) navigator.vibrate(150);
@@ -153,10 +149,8 @@ function ScanContent() {
             toast.success(`+1 (${json.produit.model} ${json.produit.capacity})`, { autoClose: 800 });
           } catch {
             toast.error('Erreur réseau', { autoClose: 1200 });
-            // Pas d'incrémentation en cas d'erreur réseau
           }
 
-          // Re-démarre le scanner très vite (même en cas d'erreur)
           setTimeout(() => {
             if (isMounted.current) {
               Quagga.start();
@@ -207,11 +201,11 @@ function ScanContent() {
   };
 
   return (
-    <div className="h-screen bg-gradient-to-b from-gray-950 to-gray-900 text-white flex flex-col overflow-hidden items-center justify-center">
-      <ToastContainer theme="dark" position="top-center" autoClose={800} hideProgressBar />
+    <div className="h-screen bg-background text-foreground flex flex-col overflow-hidden items-center justify-center">
+      <ToastContainer theme="colored" position="top-center" autoClose={800} hideProgressBar />
 
-      {/* Compteur fixe en haut */}
-      <div className="fixed top-15 left-0 right-0 z-50 flex justify-center pointer-events-none">
+      {/* Compteur fixe en haut – gardé tel quel */}
+      <div className="fixed top-15 left-55 right-0 z-50 flex justify-center pointer-events-none">
         <div className="bg-black/80 backdrop-blur-lg px-4 py-1 rounded-full shadow-2xl border border-emerald-500/40">
           <p className="text-xl font-bold text-white">
             Appareils scannés : <span className="text-emerald-400">{scannedCount}</span>
@@ -219,11 +213,11 @@ function ScanContent() {
         </div>
       </div>
 
-      <div className="w-full max-w-md my-5">
+      {/* <div className="w-full max-w-md my-5 text-center flex justify-center items-center">
         <h1 className="text-2xl font-bold text-center tracking-tight">
           Scanner Code-barres
         </h1>
-      </div>
+      </div> */}
 
       {error && (
         <div className="w-full max-w-md bg-red-900/70 border border-red-600/50 text-red-100 p-4 rounded-xl mb-4 text-center shadow-lg">
@@ -231,15 +225,15 @@ function ScanContent() {
         </div>
       )}
 
-      {/* Zone de scan : carrée, très grande, centrée */}
-      <div className="flex-1 flex items-center justify-center w-90 px-4">
+      {/* Zone de scan : carrée, très grande, centrée – gardée telle quelle */}
+      <div className="flex-1 flex items-center justify-center w-100 px-4">
         <div
           id="scanner-viewport"
-          className={`relative w-full max-w-[85vw] aspect-square bg-black rounded-2xl overflow-hidden border-4 ${isScanning ? 'border-emerald-500' : 'border-gray-700'} shadow-2xl shadow-black/60 transition-all duration-300`}
+          className={`relative w-full max-w-[85vw] aspect-square bg-black rounded-2xl overflow-hidden border-4 ${isScanning ? 'border-emerald-500' : 'border-gray-700'} shadow-sm shadow-black/60 transition-all duration-300`}
         />
       </div>
 
-      <div className="text-center mb-6">
+      <div className="text-center mb-20">
         {isScanning ? (
           <p className="text-emerald-400 font-medium text-lg animate-pulse">Scanning actif...</p>
         ) : (
@@ -247,8 +241,8 @@ function ScanContent() {
         )}
       </div>
 
-      {/* Boutons fixes en bas */}
-      <div className="fixed bottom-14 left-0 right-0 flex justify-center gap-4 px-4 z-50">
+      {/* Boutons fixes en bas – gardés tels quels */}
+      <div className="fixed bottom-8 left-60  right-0 flex justify-center gap-4 px-4 z-50">
         <button
           onClick={() => router.push(`/resume?inventaireId=${currentInventaireId}`)}
           className="bg-indigo-600 hover:bg-indigo-700 px-6 py-2.5 rounded-xl font-semibold shadow-lg transition text-sm"
@@ -286,7 +280,7 @@ export default function ScannerPage() {
   return (
     <Suspense
       fallback={
-        <div className="h-screen bg-gradient-to-b from-gray-950 to-gray-900 flex items-center justify-center text-white">
+        <div className="h-screen bg-background flex items-center justify-center text-foreground">
           <div className="text-center">
             <div className="w-16 h-16 border-4 border-t-4 border-emerald-500 rounded-full animate-spin mx-auto mb-6"></div>
             <p className="text-xl font-medium">Initialisation du scanner...</p>
