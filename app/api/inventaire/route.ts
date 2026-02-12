@@ -2,16 +2,17 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 
-// Définir une interface pour le type des inventaires retournés (basé sur le select)
+// Interface pour le résumé des inventaires (ce qu’on retourne au frontend)
 interface InventaireResume {
   id: number;
   date: Date;
   createdAt: Date;
+  nbScans: number;     // ← ajouté dynamiquement
 }
 
 export async function GET() {
   try {
-    const inventaires: InventaireResume[] = await prisma.inventaire.findMany({
+    const inventaires = await prisma.inventaire.findMany({
       select: {
         id: true,
         date: true,
@@ -20,15 +21,15 @@ export async function GET() {
       orderBy: { createdAt: 'desc' }, // Les plus récents en premier
     });
 
-    // Ajouter le nb scans pour chaque inventaire
+    // Ajout du nombre de scans pour chaque inventaire (calcul dynamique)
     const inventairesAvecNbScans = await Promise.all(
-      inventaires.map(async (inv: InventaireResume) => {  // Ajoutez ': InventaireResume' ici
+      inventaires.map(async (inv) => {
         const nbScans = await prisma.scan.count({
           where: { inventaireId: inv.id },
         });
         return {
           ...inv,
-          nbScans,
+          nbScans, // ← c'est ce que le frontend attendait probablement à la place de totalA/B
         };
       })
     );
@@ -45,13 +46,11 @@ export async function GET() {
 
 export async function POST() {
   try {
-    // Toujours créer un nouvel inventaire (pas de reprise)
+    // Création d’un nouvel inventaire sans les anciens champs
     const inventaire = await prisma.inventaire.create({
       data: {
         date: new Date(),
-        totalA: 0,
-        totalB: 0,
-        totalGeneral: 0,
+        // Plus de totalA, totalB, totalGeneral ici
       },
     });
 
